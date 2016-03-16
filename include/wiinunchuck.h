@@ -115,6 +115,17 @@ public:
 		accel_zeroz = ACCEL_ZEROZ;
 	}
 
+	String getDirection() {
+		String ret;
+		if (nunchuk_get_data()) {
+			char buf[100];
+			sprintf(buf, "x=%i, y=%i", nunchuk_joy_x(), nunchuk_joy_y());
+			ret = String(buf);
+//			delete buf;
+		}
+		return ret;
+	}
+
 	//
 	//
 	// T.T.
