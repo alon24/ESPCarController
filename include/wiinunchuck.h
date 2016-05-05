@@ -63,6 +63,9 @@
 //#include <WProgram.h>
 //#endif
 
+
+//https://bitbucket.org/mitov/visuino-libraries/src/e56ec5eafe8c550b56d26cbb527da63d58b5fa82/Mitov_Wii_Controller.h?fileviewer=file-view-default
+
 #define M_PI 3.141592653589793238462643
 
 //
@@ -83,6 +86,10 @@
 
 class WiiNunchucks {
 public:
+	WiiNunchucks(){
+		debugf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+	}
 	//
 	//
 	// Initialize and join the I2C bus, and tell the nunchuk we're
@@ -93,18 +100,88 @@ public:
 	//
 	void init()
 	{
+//		Wire.begin();
+//		delay(1);
+//		Wire.beginTransmission(0x52);  // device address
+//		Wire.write((uint8_t)0xF0);  // 1st initialisation register
+//		Wire.write((uint8_t)0x55);  // 1st initialisation value
+//		Wire.endTransmission();
+//		delay(1);
+//		Wire.beginTransmission(0x52);
+//		Wire.write((uint8_t)0xFB);  // 2nd initialisation register
+//		Wire.write((uint8_t)0x00);  // 2nd initialisation value
+//		Wire.endTransmission();
+//		delay(1);
+
+
+//		Wire.write (0x40);		  // sends memory address
+//		  Wire.write (0x00);		  // sends sent a zero.
+//		  Wire.endTransmission ();
+
+
+		///////////
+
+		byte cnt;
+		debugf("************************************* statrting init");
+
 		Wire.begin();
+
+		// init controller
 		delay(1);
-		Wire.beginTransmission(0x52);  // device address
-		Wire.write((uint8_t)0xF0);  // 1st initialisation register
-		Wire.write((uint8_t)0x55);  // 1st initialisation value
+		Wire.beginTransmission(0x52);      // device address
+		Wire.write(0xF0);                    // 1st initialisation register
+		Wire.write(0x55);                    // 1st initialisation value
 		Wire.endTransmission();
 		delay(1);
 		Wire.beginTransmission(0x52);
-		Wire.write((uint8_t)0xFB);  // 2nd initialisation register
-		Wire.write((uint8_t)0x00);  // 2nd initialisation value
+		Wire.write(0xFB);                    // 2nd initialisation register
+		Wire.write(0x00);                    // 2nd initialisation value
 		Wire.endTransmission();
 		delay(1);
+
+		// read the extension type from the register block
+		Wire.beginTransmission(0x52);
+		Wire.write(0xFA);                    // extension type register
+		Wire.endTransmission();
+		Wire.beginTransmission(0x52);
+		Wire.requestFrom(0x52, 6);               // request data from controller
+		for (cnt = 0; cnt < 6; cnt++) {
+		   if (Wire.available()) {
+		       ctrlr_type[cnt] = Wire.read(); // Should be 0x0000 A420 0101 for Classic Controller, 0x0000 A420 0000 for nunchuck
+//		       debugf("wire - %i", ctrlr_type[cnt]);
+		   }
+		}
+//		 debugf("wire 1- %i", ctrlr_type[4]);
+		Wire.endTransmission();
+		delay(1);
+
+		// send the crypto key (zeros), in 3 blocks of 6, 6 & 4.
+		Wire.beginTransmission(0x52);
+		Wire.write(0xF0);                    // crypto key command register
+		Wire.write(0xAA);                    // sends crypto enable notice
+		Wire.endTransmission();
+		delay(1);
+		Wire.beginTransmission(0x52);
+		Wire.write(0x40);                    // crypto key data address
+		for (cnt = 0; cnt < 6; cnt++) {
+		   Wire.write(0x00);                    // sends 1st key block (zeros)
+		}
+		Wire.endTransmission();
+		Wire.beginTransmission(0x52);
+		Wire.write(0x40);                    // sends memory address
+		for (cnt = 6; cnt < 12; cnt++) {
+		   Wire.write(0x00);                    // sends 2nd key block (zeros)
+		}
+		Wire.endTransmission();
+		Wire.beginTransmission(0x52);
+		Wire.write(0x40);                    // sends memory address
+		for (cnt = 12; cnt < 16; cnt++) {
+		   Wire.write(0x00);                    // sends 3rd key block (zeros)
+		}
+		Wire.endTransmission();
+		delay(1);
+		// end device init
+		/////////////////
 		//
 		// Set default calibration centres:
 		//
@@ -117,9 +194,12 @@ public:
 
 	String getDirection() {
 		String ret;
-		if (nunchuk_get_data()) {
+		if (nunchuk_get_data() == 1) {
 			char buf[100];
-			sprintf(buf, "x=%i, y=%i", nunchuk_joy_x(), nunchuk_joy_y());
+//			printf("x=%s", String(Float(nunchuk_joy_x())));
+			sprintf(buf, "x=%d,y=%d, cx=%i, cy=%i,cbtn=%i,zbtn=%i,angle=%i", nunchuk_joy_x(),
+					nunchuk_joy_y(), nunchuk_cjoy_x(),
+					nunchuk_cjoy_y(), nunchuk_cbutton(), nunchuk_zbutton(), nunchuk_joyangle());
 			ret = String(buf);
 //			delete buf;
 		}
@@ -135,11 +215,11 @@ public:
 	// This function is not needed since the way we initialize the nunchuk
 	// does not XOR encrypt the bits.
 	//
-	static inline char nunchuk_decode_byte (char x)
-	{
-		x = (x ^ 0x17) + 0x17;
-		return x;
-	}
+//	static inline char nunchuk_decode_byte (char x)
+//	{
+//		x = (x ^ 0x17) + 0x17;
+//		return x;
+//	}
 
 	static void nunchuk_send_request()
 	{
@@ -182,6 +262,7 @@ public:
 
 	void nunchuk_calibrate_joy()
 	{
+		debugf("!!!!!!!!!!!!!!!!!!!!!!!!!!ßjoy_x=%i, joy_y=%i", joy_x, joy_y);
 		joy_zerox = joy_x;
 		joy_zeroy = joy_y;
 	}
@@ -206,26 +287,26 @@ public:
 	// Returns the raw x and y values of the the joystick, cast as ints.
 	int nunchuk_joy_x()
 	{
-		return (int) nunchuk_buf[0];
+		return (float)nunchuk_buf[0] ;
 	}
 
 	int nunchuk_joy_y()
 	{
-		return (int) nunchuk_buf[1];
+		return (float)nunchuk_buf[1];
 	}
 
 	//
 	//
 	// Return calibrated x and y values of the joystick.
 	//
-	int nunchuk_cjoy_x()
+	uint8_t nunchuk_cjoy_x()
 	{
-		return (int)nunchuk_buf[0] - joy_zerox;
+		return nunchuk_buf[0] - joy_zerox;
 	}
 
-	int nunchuk_cjoy_y()
+	uint8_t nunchuk_cjoy_y()
 	{
-		return (int)nunchuk_buf[1] - joy_zeroy;
+		return nunchuk_buf[1] - joy_zeroy;
 	}
 
 	//

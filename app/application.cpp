@@ -8,8 +8,8 @@
 	#define WIFI_PWD "PleaseEnterPass"
 #endif
 
-#define sclPin 13
-#define sdaPin 14
+#define sclPin 4
+#define sdaPin 5
 
 WiiNunchucks nunchucks;
 Timer pollTimer;
@@ -92,24 +92,26 @@ void wsMessageSent()
 
 void handleNunchuckPolling() {
 	String direction = nunchucks.getDirection();
-
+//	nunchucks.init();
 	debugf("direction = %s", direction.c_str());
 }
 
 void init()
 {
-	Serial.begin(74880); // 74880
+	Serial.begin(115200); // 74880
 	Serial.systemDebugOutput(true); // Debug output to serial
+	Debug.setDebug(Serial);
 
 	//setup i2c pins
-	Wire.pins(sclPin, sdaPin);
-
+//	Wire.pins(sclPin, sdaPin);
+	Wire.pins(4,5);
 	//Change CPU freq. to 160MHZ
 	System.setCpuFrequency(eCF_160MHz);
 	wifi_set_sleep_type(NONE_SLEEP_T);
 
 	nunchucks.init();
-	pollTimer.initializeMs(200, handleNunchuckPolling);
+//	nunchucks.nunchuk_calibrate_joy();
+	pollTimer.initializeMs(1000, handleNunchuckPolling);
 	pollTimer.start();
 
 //	WifiAccessPoint.enable(false);
